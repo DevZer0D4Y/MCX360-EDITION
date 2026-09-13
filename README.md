@@ -1,4 +1,4 @@
-# MCX360 Edition: Minecraft: Xbox 360 Edition for iOS and Android
+# MCX360 Edition: Minecraft: Xbox 360 Edition STATIC RECOMPILATION
 
 A native iOS port of **Minecraft: Xbox 360 Edition (Title Update 9)**, built with the [ReXGlue](https://github.com/rexglue/rexglue-sdk) static recompilation SDK.
 
