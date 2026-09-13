@@ -17,7 +17,10 @@ A native iOS port of **Minecraft: Xbox 360 Edition (Title Update 9)**, built wit
 | **Game files** | Minecraft: Xbox 360 Edition, **disc version** |
 | **Title update** | **TU9** for that disc |
 
-Tested so far on a single 2796×1290 iPhone. Other devices should work, but they're unconfirmed.
+## Tested so far:
+-iPhone 14 Pro Max (no jailbreak, runs perfectly)
+-iPhone 8 Plus (palera1n, runs at not good FPS, but its somehow playable)
+-iPad 8th Gen (no jailbreak, TESTING)
 
 ### Your files must match exactly
 
