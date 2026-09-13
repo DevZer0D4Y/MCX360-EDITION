@@ -69,7 +69,7 @@ The title update is required. It supplies the game's updated textures, items, fo
 Download **`MCX360Edition.ipa`** from the Releases page and sideload it with any of these:
 
 - **[AltStore](https://altstore.io) / [SideStore](https://sidestore.io)**
-- **[Sideloadly](https://sideloadly.io)**
+- **[Sideloadly](https://sideloadly.io)** (enable File Sharing trough Advanced Options)
 - **TrollStore**, if your iOS version supports it
 
 The IPA is unsigned; your sideloading tool signs it with your own Apple ID.
