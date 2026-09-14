@@ -36,7 +36,7 @@ A native iOS port of **Minecraft: Xbox 360 Edition (Title Update 9)**, built wit
 | iPhone/iPad Model | Test result/Status |
 |---|---|
 | iPhone 14 Pro Max | (no jailbreak) runs perfectly. 🟩 |
-| iPhone 8 Plus | (palera1n jailbreak) runs at not good FPS, but its somehow playable. 🟨 |
+| iPhone 8 Plus | (palera1n jailbreak required, either it won't work as far as I tested) runs at not good FPS, but its somehow playable. 🟨 |
 | Version after TU | `0.0.10.1` (TU9) |
 
 -------------------------------------------
