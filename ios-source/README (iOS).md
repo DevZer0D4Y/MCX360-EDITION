@@ -25,11 +25,20 @@ A native iOS port of **Minecraft: Xbox 360 Edition (Title Update 9)**, built wit
 🟩 = Playable, 🟨 = Playable but with some FPS drops, 🟧 = Almost unplayable, 🟥 = Totally unplayable
 
 
--iPhone 14 Pro Max (no jailbreak, runs perfectly) 🟩
+-iPhone 14 Pro Max (no jailbreak) runs perfectly. 🟩
 
--iPhone 8 Plus (palera1n jailbreak, crashes at startup without jailbreak, runs at not good FPS, but its somehow playable) 🟨
+-iPhone 8 Plus (palera1n jailbreak) crashes at startup without jailbreak, runs at not good FPS, but its somehow playable. 🟨
 
--iPad 8th Gen (no jailbreak, crashes at startup, try if you can jailbreak and let me know trough pull requests) 🟥
+-iPad 8th Gen (no jailbreak) crashes at startup, try if you can jailbreak and let me know trough pull requests. 🟥
+
+-iPhone 13 (no jailbreak) runs at not good FPS, but its somehow playable. 🟨
+
+| iPhone/iPad Model | Test result/Status |
+|---|---|
+| iPhone 14 Pro Max | (no jailbreak) runs perfectly. 🟩 |
+| iPhone 8 Plus | (palera1n jailbreak) crashes at startup without jailbreak
+, runs at not good FPS, but its somehow playable. 🟨 |
+| Version after TU | `0.0.10.1` (TU9) |
 
 -------------------------------------------
 
