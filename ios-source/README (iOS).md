@@ -22,7 +22,7 @@ A native iOS port of **Minecraft: Xbox 360 Edition (Title Update 9)**, built wit
 -------------------------------------------
 
 ## 👇📱Tested so far:📱👇
-🟩 = Playable, 🟨 = Playable but with some FPS drops, 🟧 = Almost unplayable, 🟥 = Totally unplayable
+🟩 = Playable, 🟨 = Playable but with some FPS drops, 🟧 = Almost unplayable, 🟥 = Totally unplayable.
 
 | iPhone/iPad Model | Test result/Status |
 |---|---|
