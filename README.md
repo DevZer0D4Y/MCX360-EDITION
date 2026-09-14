@@ -10,3 +10,6 @@ Ko-Fi: https://ko-fi.com/dev_zer0
 Discord: https://discord.gg/uFChheZEWX
 
 YouTube: https://www.youtube.com/@develop_erZ
+
+# Follow the iOS README.MD for the updated devices list and the tutorial on how to install the game on iOS!!
+ https://github.com/DevZer0D4Y/MCX360-EDITION/blob/main/ios-source/README%20(iOS).md
