@@ -169,7 +169,7 @@ SHA-256  9d17eedf77bb200b97ca2dc3931c9096eb5063f14ce2d3935bb59fa5e4150596  MCX36
 
 ## Credits
 
-- **ReXGlue SDK**: Xbox 360 static recompilation toolkit
+- **[ReXGlue](https://github.com/rexglue/rexglue-sdk)**: Xbox 360 static recompilation toolkit
 - **[Xenia](https://xenia.jp)**: the Xbox 360 GPU and kernel emulation work ReXGlue builds on
 - **[MoltenVK](https://github.com/KhronosGroup/MoltenVK)**: Vulkan on Metal
 
