@@ -20,7 +20,7 @@ YouTube: https://www.youtube.com/@develop_erZ
 | | |
 |---|---|
 | **Device** | iPhone, iOS 16 or later |
-| **Controller** | A Bluetooth controller: Xbox, PlayStation, or MFi. **There are no touch controls.** |
+| **Controller** | A Bluetooth controller (recommended): Xbox, PlayStation, or MFi. **There are touch controls.** |
 | **Computer** | Needed once, to sideload the app and extract the game files |
 | **Game files** | Minecraft: Xbox 360 Edition, **disc version** |
 | **Title update** | **TU9** for that disc |
