@@ -164,6 +164,3 @@ SHA-256  9d17eedf77bb200b97ca2dc3931c9096eb5063f14ce2d3935bb59fa5e4150596  MCX36
 - **[MoltenVK](https://github.com/KhronosGroup/MoltenVK)**: Vulkan on Metal
 
 Minecraft is a trademark of Mojang Synergies AB. This project is not affiliated with or endorsed by Mojang, Microsoft, or 4J Studios.
-
-## A special thank you
-A special thank you goes to BlindEye Studios, the team where I work, thank you for supporting me trough this project, I really love you all!! This project has been released under The Crafting Team and BlindEye Studios, and made by the one and only DevZ.
