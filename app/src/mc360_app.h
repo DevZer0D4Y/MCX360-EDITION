@@ -1,10 +1,23 @@
 // mc360 - ReXGlue Recompiled Project
 //
 // Customize your app by overriding virtual hooks from rex::ReXApp.
+//
+// The app is a launcher: the recompiled game code is not linked into it.
+// Each title update's code is a separate core library (app/cores/<id>/), and
+// OnFinalizePaths picks one - from the menu, or directly when there is only
+// one choice - loads it, and hands its image table to the runtime.
 
 #pragma once
 
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+
 #include <rex/rex_app.h>
+
+#include "launcher/launcher.h"
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
@@ -28,10 +41,31 @@ class Mc360App : public rex::ReXApp {
 
   static std::unique_ptr<rex::ui::WindowedApp> Create(
       rex::ui::WindowedAppContext& ctx) {
+    // No image yet: the launcher sets the chosen core's before the runtime
+    // is constructed (OnFinalizePaths).
     return std::unique_ptr<Mc360App>(new Mc360App(ctx, "mc360",
-        PPCImageConfig));
+        rex::PPCImageInfo{}));
   }
 
+ protected:
+  std::optional<rex::PathConfig> OnFinalizePaths(
+      const rex::PathConfig& defaults,
+      std::function<void(rex::PathConfig)> resume) override;
+
+ private:
+  // Loads the chosen core and fills `paths`; an error for the player otherwise.
+  std::optional<std::string> PrepareLaunch(const mc360::launcher::Selection& selection,
+                                           const rex::PathConfig& defaults,
+                                           rex::PathConfig& paths);
+  void ShowLauncherMenu(const rex::PathConfig& defaults,
+                        std::function<void(rex::PathConfig)> resume,
+                        mc360::launcher::Selection initial,
+                        std::optional<std::string> error);
+  std::filesystem::path LauncherBaseDir(const rex::PathConfig& defaults) const;
+
+  std::unique_ptr<mc360::launcher::Launcher> launcher_;
+
+ protected:
 #if MC360_IOS
   // iOS launches an app with no argv, so --game_data_root/--gpu_plugin can never
   // arrive on a command line the way they do on desktop. Resolve them from the
@@ -65,13 +99,9 @@ class Mc360App : public rex::ReXApp {
     std::filesystem::create_directories(paths.cache_root, ec);
     // The title update ships its own replacement assets (terrain, items, fonts,
     // audio). Without it mounted as update:\ the game fails to open
-    // UPDATE:\res\... and falls back to degraded content.
-    if (paths.update_data_root.empty()) {
-      const std::filesystem::path tu = documents / "tu";
-      if (std::filesystem::exists(tu)) {
-        paths.update_data_root = tu;
-      }
-    }
+    // UPDATE:\res\... and falls back to degraded content. Which folder that
+    // is depends on the title update being started, so the launcher picks it
+    // in OnFinalizePaths (TU9 keeps Documents/tu).
 
     // Keep the editable config next to the game data rather than inside the
     // (read-only, signed) bundle, so settings can be changed without a rebuild.
@@ -108,7 +138,12 @@ class Mc360App : public rex::ReXApp {
                "\n"
                "# On-screen gamepad: \"auto\" shows it while no controller is connected,\n"
                "# \"on\" always, \"off\" never. touch_controls_opacity (0.1 to 1.0) dims it.\n"
-               "touch_controls = \"auto\"\n";
+               "touch_controls = \"auto\"\n"
+               "\n"
+               "# Title update menu at launch: \"auto\" shows it when there is a choice\n"
+               "# to make (several title updates or instances) or a problem with the\n"
+               "# files; \"always\" shows it every time.\n"
+               "launcher_menu = \"auto\"\n";
       }
     }
 
@@ -177,8 +212,8 @@ class Mc360App : public rex::ReXApp {
     // warm phone; 8 ran dry, heard as choppy sound.
     rex::cvar::SetDefaultByName("audio_maxqframes", "16");
 
-    REXLOG_INFO("iOS paths: game={} update={} config={}", paths.game_data_root.string(),
-                paths.update_data_root.string(), paths.config_path.string());
+    REXLOG_INFO("iOS paths: game={} config={}", paths.game_data_root.string(),
+                paths.config_path.string());
   }
 #endif
 };

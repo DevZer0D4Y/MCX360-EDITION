@@ -110,7 +110,37 @@ The IPA is unsigned; your sideloading tool signs it with your own Apple ID.
 
 The first launch can take a little longer while the game loads.
 
+With one title update and one instance, the app goes straight into the game, as before. Otherwise it opens a menu first (see below).
+
 **Achievements:** open the pause menu and select **Achievements** to see what you've unlocked and what's still locked. Achievement progress is saved on the phone.
+
+---
+
+## Title updates and instances
+
+The app is built as a launcher: each title update it supports is a separate "core" inside the app, and a menu at startup lets you pick one. Right now the app ships with **TU9** only. Other title updates have to be recompiled and tested one by one before they can be added (see [`app/cores/README.md`](app/cores/README.md)), and they will show up in the menu as they are.
+
+**The menu** opens when there is something to choose, or when something is wrong with your files:
+- Tap an **Instance** to play it, or use the D-pad and **A**. The one you played last is selected, so with a controller you can just press **A**.
+- **+ New instance** makes a separate set of worlds, settings and achievements for that title update. Instance 1 uses `userdata/`, instance 2 uses `userdata-2/`, and so on. Delete an instance by deleting its folder in the Files app.
+- If a title update's files are missing or don't match, it says what's wrong and where the files go. **Start anyway** is there if you want to try regardless.
+
+To switch title update or instance, close the app and open it again.
+
+**Folders.** TU9 keeps the folders shown in Step 4, so nothing changes for existing installs. Each other title update gets its own:
+
+```
+MCX360 Edition/
+├── game/            ← your disc files, shared by every title update
+├── tu/              ← Title Update 9
+├── tu14/            ← e.g. Title Update 14, when a build includes it
+├── userdata/        ← TU9 worlds and settings (instance 1)
+├── userdata-2/      ← TU9, instance 2
+├── userdata-tu14/   ← TU14 worlds and settings
+└── mc360.toml
+```
+
+The launcher reads each title update's version from its `default.xexp`, so a title update in a folder with a different name is still found. Keep `default.xexp` out of `game/`: the game applies one found there whichever title update you start.
 
 ---
 
@@ -121,6 +151,7 @@ The first launch can take a little longer while the game loads.
 | Setting | Default | What it does |
 |---|---|---|
 | `present_letterbox` | `false` | `false` stretches the 16:9 image to fill the screen; `true` keeps the aspect ratio with black bars on the sides |
+| `launcher_menu` | `"auto"` | `"auto"` shows the title update menu only when there is a choice or a problem; `"always"` shows it at every launch (for example, to make a second instance) |
 
 The performance settings are already tuned and built into the app. You don't need to add anything.
 
@@ -134,6 +165,9 @@ The performance settings are already tuned and built into the app. You don't nee
 
 **Textures, items or fonts look wrong**
 - The title update is missing or in the wrong place. Check that `tu/default.xexp` exists.
+
+**The menu shows "Check files" or "Can't start"**
+- The line under the title update says what's wrong. Most often the title update's folder is missing, it holds a different title update, or `game/` is from another disc version.
 
 **Stuck on the loading screen when opening a world**
 - Force-close the app and launch it again.

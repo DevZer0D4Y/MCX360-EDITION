@@ -1,21 +1,29 @@
-# MCX360 Edition - ReXGlue recompilation of Minecraft: Xbox 360 Edition (TU9), iOS build.
+# MCX360 Edition - ReXGlue recompilation of Minecraft: Xbox 360 Edition, iOS build.
 #
-# SDK boilerplate lives in generated/rexglue.cmake. The recompiled game code is
-# written to generated/default/ by codegen at build time, from your own
-# game/default.xex - it is never part of this source tree.
+# The app is a launcher (the mc360 executable) plus one core library per title
+# update: cores/<id>/ holds that title update's codegen manifest and hooks, and
+# its recompiled code is generated into cores/<id>/generated/ at build time
+# from your own game files - it is never part of this source tree. The
+# launcher shows a menu at startup when there is more than one title update
+# (or instance) to choose from, loads the chosen core and runs it.
+#
+# SDK boilerplate lives in generated/rexglue.cmake, the per-core build in
+# cmake/mc360_cores.cmake.
 
 cmake_minimum_required(VERSION 3.25)
 project(mc360 LANGUAGES CXX)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    # The launcher reads controllers through the GameController framework.
+    enable_language(OBJCXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_OBJCXX_STANDARD 23)
+set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/game/default.xex")
-    message(FATAL_ERROR
-        "game/default.xex not found.\n"
-        "Copy the files extracted from your own Minecraft: Xbox 360 Edition disc into app/game/, "
-        "and the Title Update 9 default.xexp next to it. See README.md.")
-endif()
+set(MC360_CORES "" CACHE STRING
+    "Title update cores to build, in menu order (e.g. \"tu9;tu14\"). Empty builds every folder in cores/.")
 
 # Keep build-machine paths, which usually contain your user name, out of the
 # binaries: source file names end up in log and assert messages.
@@ -25,21 +33,29 @@ if(DEFINED ENV{REXGLUE_SDK})
 endif()
 
 include(generated/rexglue.cmake)
+include(cmake/mc360_cores.cmake)
 
 set(MC360_SOURCES
     src/main.cpp
+    src/mc360_app.cpp
+    src/launcher/core_loader.cpp
+    src/launcher/launcher.cpp
+    src/launcher/launcher_dialog.cpp
+    src/launcher/xex_info.cpp
 )
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    list(APPEND MC360_SOURCES src/launcher/gamepad_poll_ios.mm)
+else()
+    list(APPEND MC360_SOURCES src/launcher/gamepad_poll_stub.cpp)
+endif()
 
 add_executable(mc360 ${MC360_SOURCES})
 
-# mc360_register.cpp is a flat table of ~54k function-pointer registrations with
-# no control flow worth optimising, but -O3 spends >10 minutes on it. -O1
-# produces the same table in seconds.
-set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/generated/default/mc360_register.cpp
-    PROPERTIES COMPILE_OPTIONS "-O1")
-
 rexglue_setup_target(mc360)
+
+# One shared library per title update, embedded next to the runtime dylibs,
+# plus the launcher's table of them.
+mc360_add_cores(mc360)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set(MC360_BUNDLE_ID "com.example.mcx360" CACHE STRING
@@ -63,6 +79,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         INSTALL_RPATH "@executable_path/Frameworks"
         BUILD_WITH_INSTALL_RPATH ON
     )
+    target_link_libraries(mc360 PRIVATE "-framework GameController")
 
     # Everything the app dlopens or links must ship inside the bundle and be
     # signed with it: iOS will not load a dylib from outside the app.

@@ -1034,6 +1034,23 @@ index 1614b4d..cf958fc 100644
  //=============================================================================
  // Initialization
  //=============================================================================
+diff --git a/include/rex/rex_app.h b/include/rex/rex_app.h
+index 1f52480..bd6fba8 100644
+--- a/include/rex/rex_app.h
++++ b/include/rex/rex_app.h
+@@ -261,6 +261,12 @@ class ReXApp : public ui::WindowedApp, public ui::WindowListener, public ui::Win
+   /// Set a callback that provides guest frame stats to the debug overlay.
+   void SetGuestFrameStats(ui::DebugOverlayDialog::FrameStatsProvider provider);
+ 
++  /// Replace the recompiled image the app was constructed with. Only valid
++  /// before ConstructRuntime (e.g. from OnFinalizePaths, or before invoking its
++  /// resume callback), for apps that choose which recompiled image to run at
++  /// startup, such as a launcher that loads one of several builds as a library.
++  void SetImageInfo(const PPCImageInfo& ppc_info) { ppc_info_ = ppc_info; }
++
+  private:
+   std::function<void(PathConfig)> MakeResumeCallback();
+ 
 diff --git a/include/rex/runtime.h b/include/rex/runtime.h
 index 34f226c..11051bf 100644
 --- a/include/rex/runtime.h

@@ -1,0 +1,12 @@
+# Game files are never part of this repository: you provide your own.
+/app/game/*
+!/app/game/PUT_YOUR_GAME_FILES_HERE.md
+/app/cores/*/game/
+
+# Recompiled code, generated from your game files at build time.
+/app/cores/*/generated/
+/app/generated/default/
+
+# Build output.
+/app/out/
+/MCX360Edition.ipa

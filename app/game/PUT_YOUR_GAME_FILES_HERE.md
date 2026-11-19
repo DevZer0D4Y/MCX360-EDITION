@@ -13,3 +13,7 @@ game/
 ```
 
 Required: Title ID `584111F7`, Media ID `7CD33B56`, version `0.0.10.1` after TU9.
+
+These files build the **Title Update 9** core (`cores/tu9/`). Other title
+updates are built from their own folder, `cores/<id>/game/`; see
+`cores/README.md`.
