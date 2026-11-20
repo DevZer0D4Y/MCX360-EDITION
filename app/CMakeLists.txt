@@ -39,8 +39,11 @@ set(MC360_SOURCES
     src/main.cpp
     src/mc360_app.cpp
     src/launcher/core_loader.cpp
+    src/launcher/importer.cpp
     src/launcher/launcher.cpp
     src/launcher/launcher_dialog.cpp
+    src/launcher/stfs_archive.cpp
+    src/launcher/xdvdfs.cpp
     src/launcher/xex_info.cpp
 )
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")

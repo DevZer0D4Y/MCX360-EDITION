@@ -39,6 +39,11 @@ title update.
 You need your own copy of the disc and of that title update, and an iPhone (or
 a desktop build) to test on.
 
+`scripts/new-core.sh <id> <title update package>` does steps 1–3 for you: it
+creates the folder, unpacks the package, writes a manifest with no TU9
+addresses, and adds the function pointers codegen's scan finds. What's left is
+filling in setjmp/longjmp, porting the hooks, and testing.
+
 1. **Make the folder.** Copy `tu9/` to `tu<N>/`. In `core.cmake`, set
    `CORE_NAME` and **delete** the three `CORE_*_DIR` lines (they keep TU9 on
    its original folders). New cores then use `tu<N>/`, `userdata-tu<N>/` and

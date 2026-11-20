@@ -12,7 +12,10 @@
 
 #include "launcher/core_loader.h"
 #include "launcher/gamepad_poll.h"
+#include "launcher/importer.h"
 #include "launcher/launcher_dialog.h"
+#include "launcher/stfs_archive.h"
+#include "launcher/xdvdfs.h"
 #include "launcher/xex_info.h"
 
 REXCVAR_DEFINE_STRING(launcher_menu, "auto", "Launcher",
@@ -73,7 +76,18 @@ std::optional<rex::PathConfig> Mc360App::OnFinalizePaths(
   launcher_->Scan();
   LogScan(*launcher_);
 
-  const bool always = REXCVAR_GET(launcher_menu) == "always";
+  // A disc image or title update package dropped into the app's folder is
+  // offered for unpacking, so the menu opens for it.
+  const auto imports =
+      mc360::launcher::FindImportCandidates(launcher_->base_dir(), launcher_->core_infos());
+  for (const auto& candidate : imports) {
+    REXLOG_INFO("Launcher: found {} ({})", candidate.path.filename().string(),
+                candidate.state == mc360::launcher::ImportCandidate::State::kReady
+                    ? std::string("ready to unpack")
+                    : candidate.note);
+  }
+  const bool always = REXCVAR_GET(launcher_menu) == "always" ||
+                      mc360::launcher::HasPendingImports(imports);
   const Selection initial = launcher_->DefaultSelection();
   std::optional<std::string> error;
   if (!launcher_->ShouldShowMenu(always) || !imgui_drawer()) {
@@ -160,5 +174,12 @@ void Mc360App::ShowLauncherMenu(const rex::PathConfig& defaults,
         app_context().CallInUIThreadDeferred(
             [resume, paths = std::move(paths)]() { resume(paths); });
         return std::nullopt;
+      },
+      [](const mc360::launcher::ImportCandidate& candidate,
+         std::string* error) -> std::unique_ptr<mc360::launcher::Archive> {
+        if (candidate.kind == mc360::launcher::ImportCandidate::Kind::kDiscImage) {
+          return mc360::launcher::XdvdfsArchive::Open(candidate.path, error);
+        }
+        return mc360::launcher::OpenStfsArchive(candidate.path, error);
       });
 }

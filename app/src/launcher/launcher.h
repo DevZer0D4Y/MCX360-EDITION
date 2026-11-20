@@ -87,6 +87,7 @@ class Launcher {
   void SetGameDir(std::filesystem::path path) { game_dir_ = std::move(path); }
 
   const std::filesystem::path& base_dir() const { return base_dir_; }
+  std::span<const CoreInfo> core_infos() const { return core_infos_; }
   std::filesystem::path game_dir() const { return game_dir_.empty() ? base_dir_ / "game" : game_dir_; }
   const std::vector<CoreStatus>& cores() const { return statuses_; }
 

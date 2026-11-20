@@ -39,6 +39,11 @@ A different disc revision or title update will not work.
 
 ---
 
+> [!TIP]
+> **No computer needed for unpacking.** If you already have your disc image (`.iso`) and the TU9 package as files, skip Steps 1, 2 and 4: install the app (Step 3), open it once, then put both files into the **MCX360 Edition** folder in the Files app (from iCloud Drive, a USB drive, AirDrop, a download…). Open the app again and tap **Import** next to each one. It unpacks them into the right folders and checks they're the right versions. You can delete the originals afterwards.
+>
+> Unpacking needs free space for the unpacked files on top of the image (the app checks before it starts and tells you how much). Keep the app open until it finishes.
+
 ## Step 1: Extract the game files
 
 1. Make an ISO of your disc with the dumping method you normally use.
@@ -118,7 +123,7 @@ With one title update and one instance, the app goes straight into the game, as 
 
 ## Title updates and instances
 
-The app is built as a launcher: each title update it supports is a separate "core" inside the app, and a menu at startup lets you pick one. Right now the app ships with **TU9** only. Other title updates have to be recompiled and tested one by one before they can be added (see [`app/cores/README.md`](app/cores/README.md)), and they will show up in the menu as they are.
+The app is built as a launcher: each title update it supports is a separate "core" inside the app, and a menu at startup lets you pick one. Right now the app ships with **TU9** only. Other title updates have to be recompiled and tested one by one before they can be added (see [`app/cores/README.md`](app/cores/README.md)), and they will show up in the menu as they are. Importing a title update's files on the phone sets up its files; it doesn't make a title update playable that the app wasn't built with.
 
 **The menu** opens when there is something to choose, or when something is wrong with your files:
 - Tap an **Instance** to play it, or use the D-pad and **A**. The one you played last is selected, so with a controller you can just press **A**.
@@ -142,6 +147,8 @@ MCX360 Edition/
 
 The launcher reads each title update's version from its `default.xexp`, so a title update in a folder with a different name is still found. Keep `default.xexp` out of `game/`: the game applies one found there whichever title update you start.
 
+**Importing on the phone.** A disc image (`.iso`) or title update package dropped into the app's folder (or an `import/` folder inside it) shows up at the top of the menu under **Files to set up**, with an **Import** button. Title update packages are matched to the right title update by their version. A package for a title update this copy of the app can't play yet is still unpacked, into `tu-<version>/`, ready for a later version of the app.
+
 ---
 
 ## Settings
@@ -154,6 +161,24 @@ The launcher reads each title update's version from its `default.xexp`, so a tit
 | `launcher_menu` | `"auto"` | `"auto"` shows the title update menu only when there is a choice or a problem; `"always"` shows it at every launch (for example, to make a second instance) |
 
 The performance settings are already tuned and built into the app. You don't need to add anything.
+
+---
+
+## Building from source (Mac)
+
+With the patched ReXGlue SDK built for macOS and iOS (`sdk/rexglue-sdk-ios.patch`) and your game files in `app/game/`:
+
+```bash
+REXGLUE_SDK=/path/to/rexglue-sdk scripts/build-ipa.sh
+```
+
+That builds every title update core whose files are present, the launcher, and `MCX360Edition.ipa`. To start a new title update core from its package:
+
+```bash
+REXGLUE_SDK=/path/to/rexglue-sdk scripts/new-core.sh tu14 path/to/TU_package
+```
+
+Then follow [`app/cores/README.md`](app/cores/README.md) to get it running.
 
 ---
 

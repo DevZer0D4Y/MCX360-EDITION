@@ -113,7 +113,8 @@ CoreStatus Launcher::ScanCore(const CoreInfo& core) const {
   if (!IsFile(xex_path)) {
     status.issues.push_back(
         {Issue::Severity::kError,
-         "game/default.xex not found. Copy the files from your disc into the game folder."});
+         "game/default.xex not found. Copy the files from your disc into the game folder, or "
+         "put your disc image (.iso) in this app's folder to unpack it here."});
   } else if (core.identity_known) {
     const auto xex = ReadXexInfo(xex_path);
     if (!xex || !xex->has_execution_info) {
@@ -193,8 +194,10 @@ CoreStatus Launcher::ScanCore(const CoreInfo& core) const {
                    ", not " + core.name + " (" + FormatXexVersion(core.game_version) + ").");
             }
           } else {
-            warn(std::string(core.name) + " files not found. Put its default.xexp and res folder in a folder named " +
-                 declared_name + ". Without them, textures, items and fonts look wrong.");
+            warn(std::string(core.name) + " files not found. Put its title update package in "
+                 "this app's folder to unpack it here, or its default.xexp and res folder in a "
+                 "folder named " + declared_name + ". Without them, textures, items and fonts "
+                 "look wrong.");
           }
         }
       }

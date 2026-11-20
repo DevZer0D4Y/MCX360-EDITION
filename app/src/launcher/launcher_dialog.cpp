@@ -6,6 +6,7 @@
 
 #include <imgui.h>
 
+#include "launcher/importer.h"
 #include "launcher/xex_info.h"
 
 namespace mc360::launcher {
@@ -39,13 +40,40 @@ std::string Relative(const std::filesystem::path& path, const std::filesystem::p
 
 LauncherDialog::LauncherDialog(rex::ui::ImGuiDrawer* drawer, Launcher& launcher,
                                Selection initial, std::optional<std::string> initial_error,
-                               StartFn on_start)
+                               StartFn on_start, ArchiveOpener opener)
     : ImGuiDialog(drawer),
       launcher_(launcher),
       on_start_(std::move(on_start)),
       focus_(std::move(initial)),
-      error_(std::move(initial_error)) {
+      error_(std::move(initial_error)),
+      opener_(std::move(opener)) {
   error_popup_requested_ = error_.has_value();
+  imports_ = FindImportCandidates(launcher_.base_dir(), launcher_.core_infos());
+}
+
+// Waits for an import still running (the app is closing anyway).
+LauncherDialog::~LauncherDialog() = default;
+
+void LauncherDialog::Rescan() {
+  launcher_.Scan();
+  imports_ = FindImportCandidates(launcher_.base_dir(), launcher_.core_infos());
+}
+
+void LauncherDialog::PollImport() {
+  if (job_ && job_->finished()) {
+    import_message_ = job_->message();
+    import_message_ok_ = job_->succeeded();
+    job_.reset();  // joins the finished thread
+    Rescan();
+    if (HasPendingImports(imports_)) {
+      // More to unpack: keep the list where the Import buttons are.
+      scroll_to_top_ = true;
+    } else {
+      // All set: on to the game, which may only now be startable.
+      focus_ = launcher_.DefaultSelection();
+      focus_pending_ = true;
+    }
+  }
 }
 
 void LauncherDialog::Start(const Selection& selection) {
@@ -63,6 +91,14 @@ void LauncherDialog::Start(const Selection& selection) {
 void LauncherDialog::OnDraw(ImGuiIO& io) {
   if (closing_) {
     return;
+  }
+  PollImport();
+  // Files added in the Files app while the menu is up show up by themselves.
+  if (!importing() && ImGui::GetTime() >= next_rescan_time_) {
+    if (next_rescan_time_ > 0.0) {
+      Rescan();
+    }
+    next_rescan_time_ = ImGui::GetTime() + 2.0;
   }
   if (!ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
       !ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
@@ -97,6 +133,11 @@ void LauncherDialog::OnDraw(ImGuiIO& io) {
     if (ImGui::BeginChild("##cores", ImVec2(0.0f, -footer_height),
                           ImGuiChildFlags_NavFlattened)) {
       const float content_width = ImGui::GetContentRegionAvail().x;
+      if (scroll_to_top_) {
+        ImGui::SetScrollY(0.0f);
+        scroll_to_top_ = false;
+      }
+      DrawImports(content_width);
       if (launcher_.cores().empty()) {
         ImGui::TextColored(kErrorColor, "This build contains no title updates.");
       }
@@ -114,7 +155,9 @@ void LauncherDialog::OnDraw(ImGuiIO& io) {
     }
     ImGui::EndChild();
 
-    ImGui::TextColored(kDimColor, "Each instance keeps its own worlds and settings.");
+    ImGui::TextColored(kDimColor, "%s",
+                       importing() ? "Keep the app open until unpacking finishes."
+                                   : "Each instance keeps its own worlds and settings.");
     DrawPopups(scale);
   }
   ImGui::End();
@@ -123,6 +166,20 @@ void LauncherDialog::OnDraw(ImGuiIO& io) {
   ImGui::PopStyleVar(5);
   ImGui::PopFont();
   focus_pending_ = false;
+
+  if (pending_import_ && !closing_ && !importing()) {
+    const std::string path = std::move(*pending_import_);
+    pending_import_.reset();
+    for (const ImportCandidate& candidate : imports_) {
+      if (candidate.path.string() == path && candidate.state == ImportCandidate::State::kReady) {
+        import_message_.clear();
+        job_ = std::make_unique<ImportJob>(candidate, launcher_.base_dir(),
+                                           launcher_.core_infos(), opener_);
+        job_->Start();
+        break;
+      }
+    }
+  }
 
   if (pending_new_instance_ && !closing_) {
     const std::string core_id = std::move(*pending_new_instance_);
@@ -135,6 +192,89 @@ void LauncherDialog::OnDraw(ImGuiIO& io) {
       error_popup_requested_ = true;
     }
   }
+}
+
+void LauncherDialog::DrawImports(float content_width) {
+  // Files already unpacked aren't listed; the message after an import says
+  // the original can be deleted.
+  const bool any_open = std::any_of(imports_.begin(), imports_.end(), [](const auto& c) {
+    return c.state != ImportCandidate::State::kInstalled;
+  });
+  if (!any_open && import_message_.empty()) {
+    return;
+  }
+  const ImGuiStyle& style = ImGui::GetStyle();
+  ImGui::Spacing();
+  ImGui::Text("Files to set up");
+  ImGui::PushTextWrapPos(content_width);
+  if (!import_message_.empty()) {
+    ImGui::TextColored(import_message_ok_ ? kReadyColor : kErrorColor, "%s",
+                       import_message_.c_str());
+  }
+  const ImVec2 button_size(ImGui::CalcTextSize("+ New instance").x + style.FramePadding.x * 4.0f,
+                           ImGui::GetFrameHeight() * 1.3f);
+  for (const ImportCandidate& candidate : imports_) {
+    if (candidate.state == ImportCandidate::State::kInstalled) {
+      continue;
+    }
+    const std::string id = candidate.path.string();
+    ImGui::PushID(id.c_str());
+    ImGui::Spacing();
+    const bool running = job_ && job_->candidate().path == candidate.path;
+    const bool ready = candidate.state == ImportCandidate::State::kReady;
+
+    // [Import]  What it is
+    //           file name, size, and any note
+    if (ready && !running) {
+      ImGui::BeginDisabled(importing());
+      const bool import = ImGui::Button("Import", button_size);
+      ImGui::EndDisabled();
+      if (import && !touch_scrolled_) {
+        // Started after this frame, outside the list being drawn.
+        pending_import_ = id;
+      }
+      ImGui::SameLine();
+    }
+    ImGui::BeginGroup();
+    std::string label;
+    if (candidate.kind == ImportCandidate::Kind::kDiscImage) {
+      label = "Disc image";
+    } else {
+      label = "Title update";
+      if (candidate.version) {
+        label += " " + FormatXexVersion(candidate.version);
+      }
+      if (candidate.core) {
+        label += std::string(" (") + candidate.core->name + ")";
+      }
+    }
+    ImGui::Text("%s", label.c_str());
+    ImGui::TextColored(kDimColor, "%s, %s", candidate.path.filename().string().c_str(),
+                       FormatBytes(candidate.file_size).c_str());
+    if (ready && !running && candidate.kind == ImportCandidate::Kind::kTitleUpdate &&
+        !candidate.core) {
+      ImGui::TextColored(kWarningColor,
+                         "This copy of the app can't play it yet; it can be unpacked now.");
+    } else if (!ready) {
+      ImGui::TextColored(candidate.state == ImportCandidate::State::kInstalled ? kReadyColor
+                                                                                : kWarningColor,
+                         "%s", candidate.note.c_str());
+    }
+    ImGui::EndGroup();
+
+    if (running) {
+      const uint64_t total = job_->bytes_total();
+      const float fraction = total ? float(double(job_->bytes_done()) / double(total)) : 0.0f;
+      const std::string overlay =
+          std::to_string(int(fraction * 100.0f)) + "%  " + job_->current_file();
+      ImGui::ProgressBar(fraction, ImVec2(content_width, ImGui::GetFrameHeight() * 1.3f),
+                         overlay.c_str());
+    }
+    ImGui::PopID();
+  }
+  ImGui::PopTextWrapPos();
+  ImGui::Spacing();
+  ImGui::Separator();
 }
 
 void LauncherDialog::DrawCore(const CoreStatus& status, float scale, float content_width) {
@@ -191,7 +331,7 @@ void LauncherDialog::DrawCore(const CoreStatus& status, float scale, float conte
       ImGui::SameLine();
     }
     const Selection selection{core.id, instance.number};
-    ImGui::BeginDisabled(!can_start);
+    ImGui::BeginDisabled(!can_start || importing());
     const std::string label = InstanceLabel(instance.number);
     if (ImGui::Button(label.c_str(), button_size) && !touch_scrolled_) {
       if (status.has_warning()) {
@@ -202,7 +342,7 @@ void LauncherDialog::DrawCore(const CoreStatus& status, float scale, float conte
       }
     }
     ImGui::EndDisabled();
-    if (focus_pending_ && selection == focus_) {
+    if (focus_pending_ && selection == focus_ && can_start && !importing()) {
       ImGui::SetItemDefaultFocus();
       ImGui::SetKeyboardFocusHere(-1);
       // Highlighted from the start, so A on a controller plays the last-used
@@ -218,7 +358,10 @@ void LauncherDialog::DrawCore(const CoreStatus& status, float scale, float conte
   ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.20f, 0.22f, 1.0f));
   ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.26f, 0.29f, 0.32f, 1.0f));
   ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.32f, 0.36f, 0.40f, 1.0f));
-  if (ImGui::Button("+ New instance", button_size) && !touch_scrolled_) {
+  ImGui::BeginDisabled(importing());
+  const bool new_instance = ImGui::Button("+ New instance", button_size);
+  ImGui::EndDisabled();
+  if (new_instance && !touch_scrolled_) {
     // Creating it rescans the cores this frame is iterating over; do it after.
     pending_new_instance_ = core.id;
   }
