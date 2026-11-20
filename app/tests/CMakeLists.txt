@@ -88,6 +88,30 @@ if(REXGLUE_SDK)
     target_compile_definitions(sdk_reader_test PRIVATE SPDLOG_FMT_EXTERNAL FMT_HEADER_ONLY)
     target_link_libraries(sdk_reader_test PRIVATE Threads::Threads)
     add_test(NAME sdk_readers COMMAND sdk_reader_test ${TOOLS_DIR})
+
+    # Core loading, with two stand-in core libraries next to the test.
+    foreach(_core tu9 tu14)
+        add_library(mc360core_${_core} SHARED
+            ${APP_DIR}/src/core/core_entry.cpp fake_core/fake_core.cpp)
+        target_include_directories(mc360core_${_core} PRIVATE
+            ${APP_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/fake_core ${REXGLUE_SDK}/include)
+        target_compile_definitions(mc360core_${_core} PRIVATE MC360_CORE_ID="${_core}")
+        set_target_properties(mc360core_${_core} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    endforeach()
+    add_executable(core_loader_test core_loader_test.cpp
+        ${APP_DIR}/src/launcher/core_loader.cpp
+        ${REXGLUE_SDK}/src/core/dynlib_posix.cpp
+        ${SDK_SOURCES})
+    target_include_directories(core_loader_test PRIVATE
+        $<TARGET_PROPERTY:sdk_reader_test,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(core_loader_test PRIVATE SPDLOG_FMT_EXTERNAL FMT_HEADER_ONLY
+        CORE_SUFFIX="${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    target_link_libraries(core_loader_test PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+    set_target_properties(core_loader_test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    add_dependencies(core_loader_test mc360core_tu9 mc360core_tu14)
+    add_test(NAME core_loader COMMAND core_loader_test)
 else()
     message(STATUS "REXGLUE_SDK not set: skipping sdk_reader_test")
 endif()

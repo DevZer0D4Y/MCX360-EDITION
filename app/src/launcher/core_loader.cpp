@@ -53,6 +53,10 @@ std::variant<const CoreExports*, std::string> LoadCore(const CoreInfo& core) {
   if (!exports || exports->abi_version != kCoreAbiVersion || !exports->id ||
       std::strcmp(exports->id, core.id) != 0 || !exports->image_info) {
     REXLOG_ERROR("Launcher: {} is not a matching core library", core.library);
+    // None of its code has run beyond static initialisers; unload it so
+    // another title update can still be picked without restarting the app.
+    library.Close();
+    loaded_id.clear();
     return std::string(core.name) + " doesn't match this version of the app. Reinstall the app.";
   }
   return exports;
