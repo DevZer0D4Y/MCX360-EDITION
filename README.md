@@ -172,7 +172,7 @@ With the patched ReXGlue SDK built for macOS and iOS (`sdk/rexglue-sdk-ios.patch
 REXGLUE_SDK=/path/to/rexglue-sdk scripts/build-ipa.sh
 ```
 
-That builds every title update core whose files are present, the launcher, and `MCX360Edition.ipa`. To start a new title update core from its package:
+That runs the launcher's tests (`app/tests/`, a few seconds), then builds every title update core whose files are present, the launcher, and `MCX360Edition.ipa`. To start a new title update core from its package:
 
 ```bash
 REXGLUE_SDK=/path/to/rexglue-sdk scripts/new-core.sh tu14 path/to/TU_package

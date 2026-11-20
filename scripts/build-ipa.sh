@@ -8,6 +8,7 @@
 #   MC360_CORES      which cores, in menu order, e.g. "tu9;tu14" (default: all)
 #   MC360_BUNDLE_ID  bundle identifier (default: com.example.mcx360)
 #   OUT              where to write the .ipa (default: ./MCX360Edition.ipa)
+#   MC360_SKIP_TESTS=1  skip the launcher tests run first
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
@@ -48,6 +49,14 @@ done
 EXTRA=()
 [ -n "${MC360_CORES:-}" ] && EXTRA+=("-DMC360_CORES=$MC360_CORES")
 [ -n "${MC360_BUNDLE_ID:-}" ] && EXTRA+=("-DMC360_BUNDLE_ID=$MC360_BUNDLE_ID")
+
+# The launcher's own tests (seconds; synthetic data). MC360_SKIP_TESTS=1 skips.
+if [ "${MC360_SKIP_TESTS:-0}" != 1 ]; then
+  echo "==> Testing the launcher and importer"
+  cmake -S "$APP/tests" -B "$APP/out/tests" -G Ninja -DREXGLUE_SDK="$REXGLUE_SDK" >/dev/null
+  cmake --build "$APP/out/tests"
+  ctest --test-dir "$APP/out/tests" --output-on-failure
+fi
 
 cd "$APP"
 echo "==> Configuring (the first run recompiles each core's code; this takes a while)"
