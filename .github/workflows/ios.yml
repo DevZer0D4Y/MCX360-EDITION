@@ -1,0 +1,164 @@
+# Builds MCX360Edition.ipa on a GitHub-hosted Mac.
+#
+# The recompiled game code is generated from your own game files, which are
+# never stored in this repository. To build the full app, put default.xex
+# (from your disc) and default.xexp (from Title Update 9) in a zip, password
+# protect it, upload it anywhere that gives a direct download link, and add
+# two repository secrets:
+#   MC360_GAME_FILES_URL       the direct download link
+#   MC360_GAME_FILES_PASSWORD  the zip's password
+# Further title update cores: put each one's default.xexp in the zip as
+# <core id>/default.xexp (e.g. tu14/default.xexp), next to app/cores/<id>/.
+#
+# Without the secrets the workflow still builds the SDK, runs the launcher's
+# tests and builds the launcher itself for iOS, as a compile check; it then
+# uploads nothing. The game files are only ever extracted into app/game and
+# app/cores/*/game on the runner and are never uploaded.
+
+name: iOS build
+
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['app/**', 'sdk/**', 'scripts/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The rexglue-sdk commit sdk/rexglue-sdk-ios.patch applies to.
+  SDK_COMMIT: c4b524968a317288bbdbc06fe7bdea6f84ce7b81
+  REXGLUE_SDK: ${{ github.workspace }}/.sdk/rexglue-sdk
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          brew install ninja p7zip >/dev/null || true
+          cmake --version | head -1
+          ninja --version
+          xcodebuild -version
+          df -h "$GITHUB_WORKSPACE" | tail -1
+
+      - name: SDK source
+        run: |
+          git init -q "$REXGLUE_SDK"
+          cd "$REXGLUE_SDK"
+          git remote add origin https://github.com/rexglue/rexglue-sdk.git
+          git fetch -q --depth 1 origin "$SDK_COMMIT"
+          git checkout -q FETCH_HEAD
+          git apply "$GITHUB_WORKSPACE/sdk/rexglue-sdk-ios.patch"
+          git submodule update -q --init --recursive --depth 1 --jobs 8
+          du -sh . | tail -1
+
+      - name: Restore SDK build
+        id: sdk-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .sdk/rexglue-sdk/out/install/ios-arm64
+            .sdk/rexglue-sdk/out/ios-arm64/Release
+            .sdk/rexglue-sdk/out/mac-arm64/Release
+          key: rexglue-sdk-${{ env.SDK_COMMIT }}-${{ hashFiles('sdk/rexglue-sdk-ios.patch') }}-v1
+
+      - name: Build SDK (macOS codegen tool)
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        working-directory: .sdk/rexglue-sdk
+        run: |
+          cmake --preset mac-arm64 -DREXGLUE_ENABLE_TRACY=OFF
+          cmake --build --preset mac-arm64-release --target rexglue
+          ls -la out/mac-arm64/Release/rexglue
+
+      - name: Build SDK (iOS runtime)
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        working-directory: .sdk/rexglue-sdk
+        run: |
+          cmake --preset ios-arm64
+          cmake --build --preset ios-arm64-release
+          cmake --install out/build/ios-arm64 --config Release
+          ls -la out/ios-arm64/Release
+
+      - name: Save SDK build
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .sdk/rexglue-sdk/out/install/ios-arm64
+            .sdk/rexglue-sdk/out/ios-arm64/Release
+            .sdk/rexglue-sdk/out/mac-arm64/Release
+          key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
+
+      - name: Launcher tests
+        run: |
+          cmake -S app/tests -B app/out/tests -G Ninja -DREXGLUE_SDK="$REXGLUE_SDK"
+          cmake --build app/out/tests
+          ctest --test-dir app/out/tests --output-on-failure
+
+      - name: Game files
+        id: game
+        env:
+          GAME_FILES_URL: ${{ secrets.MC360_GAME_FILES_URL }}
+          GAME_FILES_PASSWORD: ${{ secrets.MC360_GAME_FILES_PASSWORD }}
+        run: |
+          if [ -z "$GAME_FILES_URL" ]; then
+            echo "No MC360_GAME_FILES_URL secret: building the launcher only."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          zip="$RUNNER_TEMP/game.zip"
+          out="$RUNNER_TEMP/game"
+          curl -fsSL --retry 3 "$GAME_FILES_URL" -o "$zip"
+          7z x -y -p"$GAME_FILES_PASSWORD" -o"$out" "$zip" >/dev/null
+          rm -f "$zip"
+          # TU9 (the base layout): default.xex and default.xexp at the top.
+          xex="$(find "$out" -iname default.xex | head -1)"
+          [ -n "$xex" ] || { echo "::error::No default.xex in the game files zip."; exit 1; }
+          cp "$xex" app/game/default.xex
+          top="$(dirname "$xex")"
+          [ -f "$top/default.xexp" ] && cp "$top/default.xexp" app/game/default.xexp
+          # Other cores: <id>/default.xexp, for each app/cores/<id>/ that exists.
+          for core in app/cores/*/; do
+            id="$(basename "$core")"
+            [ "$id" = tu9 ] && continue
+            if [ -f "$top/$id/default.xexp" ]; then
+              mkdir -p "$core/game"
+              cp "$xex" "$core/game/default.xex"
+              cp "$top/$id/default.xexp" "$core/game/default.xexp"
+              echo "Core $id: files present"
+            fi
+          done
+          rm -rf "$out"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build the app
+        working-directory: app
+        run: |
+          extra=""
+          [ "${{ steps.game.outputs.available }}" = true ] || extra="-DMC360_ALLOW_NO_CORES=ON"
+          cmake --preset ios-arm64-release $extra
+          cmake --build --preset ios-arm64-release
+          ls -la out/build/ios-arm64-release/mc360.app/Frameworks
+
+      - name: Package
+        run: |
+          OUT="$GITHUB_WORKSPACE/MCX360Edition.ipa" bash scripts/make-ipa.sh
+          ls -la MCX360Edition.ipa
+
+      - name: Upload IPA
+        if: steps.game.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MCX360Edition-ipa
+          path: MCX360Edition.ipa
+          retention-days: 7
+          if-no-files-found: error
