@@ -112,6 +112,10 @@ if(REXGLUE_SDK)
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     add_dependencies(core_loader_test mc360core_tu9 mc360core_tu14)
     add_test(NAME core_loader COMMAND core_loader_test)
+    # The test unloads a library on purpose and loads it again. macOS keeps the
+    # image mapped, so ASan registers its globals a second time and reports an
+    # ODR violation that isn't one.
+    set_tests_properties(core_loader PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_odr_violation=0")
 else()
     message(STATUS "REXGLUE_SDK not set: skipping sdk_reader_test")
 endif()
