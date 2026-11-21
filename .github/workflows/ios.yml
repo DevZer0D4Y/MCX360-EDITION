@@ -47,8 +47,38 @@ jobs:
           brew install ninja p7zip >/dev/null || true
           cmake --version | head -1
           ninja --version
-          xcodebuild -version
           df -h "$GITHUB_WORKSPACE" | tail -1
+
+      # Xcode 16.3 and later ship a libc++ that advertises std::format, so the
+      # Vulkan C++ headers use it, and its floating-point half needs iOS 16.3.
+      # Older libc++ doesn't, and the headers fall back to streams: pick such
+      # an Xcode to keep the app's iOS 16.0 minimum. Without one, build for
+      # iOS 16.3 instead.
+      - name: Select Xcode
+        run: |
+          probe='#include <version>
+          #ifdef __cpp_lib_format
+          #error advertises std::format
+          #endif'
+          chosen=""
+          for app in $(ls -d /Applications/Xcode_*.app | sort -rV); do
+            dev="$app/Contents/Developer"
+            sdk="$(DEVELOPER_DIR="$dev" xcrun --sdk iphoneos --show-sdk-path 2>/dev/null)" || continue
+            if echo "$probe" | DEVELOPER_DIR="$dev" xcrun clang++ -std=c++23 -x c++ -fsyntax-only \
+                 -isysroot "$sdk" -target arm64-apple-ios16.0 - 2>/dev/null; then
+              chosen="$app"
+              break
+            fi
+          done
+          if [ -n "$chosen" ]; then
+            sudo xcode-select -s "$chosen/Contents/Developer"
+            echo "IOS_DEPLOYMENT=16.0" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No installed Xcode keeps iOS 16.0; building for iOS 16.3."
+            echo "IOS_DEPLOYMENT=16.3" >> "$GITHUB_ENV"
+          fi
+          echo "XCODE_ID=$(xcodebuild -version | tr '\n' ' ' | tr -cd 'A-Za-z0-9.')" >> "$GITHUB_ENV"
+          xcodebuild -version
 
       - name: SDK source
         run: |
@@ -69,7 +99,7 @@ jobs:
             .sdk/rexglue-sdk/out/install/ios-arm64
             .sdk/rexglue-sdk/out/ios-arm64/Release
             .sdk/rexglue-sdk/out/mac-arm64/Release
-          key: rexglue-sdk-${{ env.SDK_COMMIT }}-${{ hashFiles('sdk/rexglue-sdk-ios.patch') }}-v1
+          key: rexglue-sdk-${{ env.SDK_COMMIT }}-${{ hashFiles('sdk/rexglue-sdk-ios.patch') }}-${{ env.XCODE_ID }}-ios${{ env.IOS_DEPLOYMENT }}-v1
 
       - name: Build SDK (macOS codegen tool)
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -83,7 +113,7 @@ jobs:
         if: steps.sdk-cache.outputs.cache-hit != 'true'
         working-directory: .sdk/rexglue-sdk
         run: |
-          cmake --preset ios-arm64
+          cmake --preset ios-arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT"
           cmake --build --preset ios-arm64-release
           cmake --install out/build/ios-arm64 --config Release
           ls -la out/ios-arm64/Release
@@ -145,7 +175,7 @@ jobs:
         run: |
           extra=""
           [ "${{ steps.game.outputs.available }}" = true ] || extra="-DMC360_ALLOW_NO_CORES=ON"
-          cmake --preset ios-arm64-release $extra
+          cmake --preset ios-arm64-release -DCMAKE_OSX_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT" $extra
           cmake --build --preset ios-arm64-release
           ls -la out/build/ios-arm64-release/mc360.app/Frameworks
 
