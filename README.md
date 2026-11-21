@@ -180,6 +180,16 @@ REXGLUE_SDK=/path/to/rexglue-sdk scripts/new-core.sh tu14 path/to/TU_package
 
 Then follow [`app/cores/README.md`](app/cores/README.md) to get it running.
 
+### Building in the cloud (no Mac)
+
+`.github/workflows/ios.yml` builds the SDK, runs the tests and builds the app on a GitHub-hosted Mac, on every push to a `claude/**` branch or from the Actions tab. It needs your game files, which never go into the repository:
+
+1. Make a zip with your disc's `default.xex` and TU9's `default.xexp` at the top. For other title update cores in `app/cores/`, add `<core id>/default.xexp` (e.g. `tu14/default.xexp`). Give it a password.
+2. Upload it somewhere that gives a direct download link.
+3. In the repository's **Settings → Secrets and variables → Actions**, add `MC360_GAME_FILES_URL` (the link) and `MC360_GAME_FILES_PASSWORD`.
+
+The finished `MCX360Edition.ipa` is attached to the run as an artifact for 7 days. Without the secrets the workflow only builds the launcher, as a check.
+
 ---
 
 ## Troubleshooting
