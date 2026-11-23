@@ -1,5 +1,7 @@
 # MCX360 Edition: Minecraft: Xbox 360 Edition for iPhone
 
+[![Listed on PlayPorted](https://playported.com/badge.svg)](https://playported.com/ports/1733-minecraft-xbox-360-edition/)
+
 A native iOS port of **Minecraft: Xbox 360 Edition (Title Update 9)**, built with the [ReXGlue](https://github.com/rexglue/rexglue-sdk) static recompilation SDK. The Xbox 360 code is recompiled ahead of time to run natively on iPhone. Graphics run through Vulkan on Metal via MoltenVK. **Developer mode MIGHT be required on older and newer iOS, enable it going trough: Settings > Privacy & Security, scroll to the bottom, toggle on Developer Mode, and restart your device.**
 
 > [!IMPORTANT]
